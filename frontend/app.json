@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "The Hot Chick",
+    "slug": "the-hot-chick",
+    "version": "1.0.0",
+    "scheme": "thehotchick",
+    "orientation": "portrait",
+    "icon": "./src/assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./src/assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#16A34A"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.thehotchick.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "The Hot Chick uses your location to set delivery details on checkout."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/adaptive-icon.png",
+        "backgroundColor": "#16A34A"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.thehotchick.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./src/assets/favicon.png"
+    }
+  }
+}
+
