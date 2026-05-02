@@ -69,6 +69,14 @@ const reservationSchema = new mongoose.Schema(
             default: 'confirmed',
             index: true,
         },
+        confirmationPdfUrl: {
+            type: String,
+            default: '',
+        },
+        qrCodeUrl: {
+            type: String,
+            default: '',
+        },
     },
     { timestamps: true }
 );

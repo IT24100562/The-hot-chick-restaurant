@@ -5,10 +5,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../../api/axios';
-import { API_BASE_URL } from '../../api/axios';
 import colors from '../../styles/colors';
 import { StatusBadge } from '../../components/StatusBadge';
 import { allowAlphaSpace, isAlphaSpace, trimSpaces } from '../../utils/validation';
+import { buildFileUrl } from '../../utils/media';
 
 export default function ManageCategories({ navigation }) {
     const [categories, setCategories] = useState([]);
@@ -133,7 +133,7 @@ export default function ManageCategories({ navigation }) {
                         {image ? (
                             <Image source={{ uri: image.uri }} style={styles.imagePreview} />
                         ) : existingImage ? (
-                            <Image source={{ uri: `${API_BASE_URL}${existingImage}` }} style={styles.imagePreview} />
+                            <Image source={{ uri: buildFileUrl(existingImage, editingId || Date.now()) }} style={styles.imagePreview} />
                         ) : (
                             <View style={styles.imagePlaceholder}>
                                 <Ionicons name="image-outline" size={32} color={colors.textMuted} />
@@ -195,7 +195,7 @@ export default function ManageCategories({ navigation }) {
                     <View style={styles.catCard}>
                         <View style={styles.catIcon}>
                             {item.image ? (
-                                <Image source={{ uri: `${API_BASE_URL}${item.image}` }} style={styles.catImage} />
+                                <Image source={{ uri: buildFileUrl(item.image, item.updatedAt || item.createdAt || item._id) }} style={styles.catImage} />
                             ) : (
                                 <Ionicons name="grid" size={20} color={colors.primary} />
                             )}

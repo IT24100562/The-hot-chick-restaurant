@@ -43,6 +43,7 @@ app.use('/api/payments', require('./routes/paymentRoutes'));
 app.use('/api/reviews', require('./routes/reviewRoutes'));
 app.use('/api/promotions', require('./routes/promotionRoutes'));
 app.use('/api/reservations', require('./routes/reservationRoutes'));
+app.use('/api/delivery-bookings', require('./routes/deliveryBookingRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/admin/users', require('./routes/userManagementRoutes'));
 

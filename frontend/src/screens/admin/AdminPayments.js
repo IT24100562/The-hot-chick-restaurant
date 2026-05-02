@@ -6,11 +6,12 @@ import { useFocusEffect } from '@react-navigation/native';
 import api from '../../api/axios';
 import colors from '../../styles/colors';
 import { PremiumCard, EmptyState, StatusBadge } from '../../components';
+import { buildFileUrl } from '../../utils/media';
 
 const paymentStatusOptions = ['all', 'paid', 'pending', 'failed', 'processing'];
 
 export default function AdminPayments() {
-  const [orders, setOrders] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('all');
   const [errorMessage, setErrorMessage] = useState('');
@@ -18,8 +19,8 @@ export default function AdminPayments() {
   const fetchPayments = useCallback(async () => {
     try {
       setErrorMessage('');
-      const res = await api.get('/api/orders/all');
-      setOrders(res.data.data || []);
+      const res = await api.get('/api/payments/all');
+      setPayments(res.data.data || []);
     } catch (error) {
       setErrorMessage(error.userMessage || 'Unable to load payments. Pull to refresh.');
     }
@@ -37,31 +38,34 @@ export default function AdminPayments() {
     setRefreshing(false);
   };
 
-  const filteredOrders = filter === 'all'
-    ? orders
-    : orders.filter((order) => (order.paymentStatus || 'pending') === filter);
+  const filteredPayments = filter === 'all'
+    ? payments
+    : payments.filter((payment) => (payment.status || 'pending') === filter);
 
-  const paidOrders = orders.filter((order) => order.paymentStatus === 'paid');
-  const pendingOrders = orders.filter((order) => ['pending', 'processing'].includes(order.paymentStatus));
-  const failedOrders = orders.filter((order) => order.paymentStatus === 'failed');
-  const paidTotal = paidOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+  const paidPayments = payments.filter((payment) => payment.status === 'paid');
+  const pendingPayments = payments.filter((payment) => ['pending', 'processing'].includes(payment.status));
+  const failedPayments = payments.filter((payment) => payment.status === 'failed');
+  const paidTotal = paidPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
 
   const renderPayment = ({ item }) => (
     <PremiumCard variant="light" padding={16} marginVertical={6} marginHorizontal={16}>
       <View style={styles.paymentRow}>
         <View style={styles.paymentInfo}>
-          <Text style={styles.paymentId}>Order #{item._id?.slice(-6)}</Text>
-          <Text style={styles.paymentCustomer}>{item.userId?.name || 'Guest'}</Text>
+          <Text style={styles.paymentId}>Payment #{item._id?.slice(-6)}</Text>
+          <Text style={styles.paymentCustomer}>{item.user?.name || 'Guest'}</Text>
           <View style={styles.paymentMetaRow}>
-            <StatusBadge status={item.paymentStatus || 'pending'} size="sm" />
+            <StatusBadge status={item.status || 'pending'} size="sm" />
             <View style={styles.methodBadge}>
               <MaterialIcons name="credit-card" size={12} color={colors.primary} />
-              <Text style={styles.methodText}>{(item.paymentMethod || 'cash').toUpperCase()}</Text>
+              <Text style={styles.methodText}>{(item.method || 'cash').toUpperCase()}</Text>
             </View>
           </View>
+          {item.receiptUrl ? (
+            <Text style={styles.receiptText}>{buildFileUrl(item.receiptUrl, item.updatedAt || item.createdAt || item._id)}</Text>
+          ) : null}
         </View>
         <View style={styles.paymentAmountWrap}>
-          <Text style={styles.paymentAmount}>Rs. {item.totalAmount?.toFixed(0)}</Text>
+          <Text style={styles.paymentAmount}>Rs. {Number(item.amount || 0).toFixed(0)}</Text>
           <Text style={styles.paymentDate}>{new Date(item.createdAt).toLocaleDateString()}</Text>
         </View>
       </View>
@@ -72,7 +76,7 @@ export default function AdminPayments() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Payments</Text>
-        <Text style={styles.subtitle}>{orders.length} total</Text>
+        <Text style={styles.subtitle}>{payments.length} total</Text>
       </View>
 
       {errorMessage ? (
@@ -90,12 +94,12 @@ export default function AdminPayments() {
         </PremiumCard>
         <PremiumCard variant="light" padding={14} marginVertical={6} marginHorizontal={8} style={styles.summaryCard}>
           <MaterialIcons name="pending-actions" size={22} color={colors.warning} />
-          <Text style={styles.summaryValue}>{pendingOrders.length}</Text>
+          <Text style={styles.summaryValue}>{pendingPayments.length}</Text>
           <Text style={styles.summaryLabel}>Pending Payments</Text>
         </PremiumCard>
         <PremiumCard variant="light" padding={14} marginVertical={6} marginHorizontal={8} style={styles.summaryCard}>
           <MaterialIcons name="cancel" size={22} color={colors.danger} />
-          <Text style={styles.summaryValue}>{failedOrders.length}</Text>
+          <Text style={styles.summaryValue}>{failedPayments.length}</Text>
           <Text style={styles.summaryLabel}>Failed</Text>
         </PremiumCard>
       </View>
@@ -119,7 +123,7 @@ export default function AdminPayments() {
       />
 
       <FlatList
-        data={filteredOrders}
+        data={filteredPayments}
         keyExtractor={(item) => item._id}
         renderItem={renderPayment}
         contentContainerStyle={styles.list}
@@ -239,6 +243,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textMuted,
     marginTop: 2,
+  },
+  receiptText: {
+    fontSize: 10,
+    color: colors.primary,
+    marginTop: 6,
   },
   paymentMetaRow: {
     flexDirection: 'row',

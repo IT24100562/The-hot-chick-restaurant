@@ -51,12 +51,21 @@ const createReview = async (req, res) => {
             return res.status(400).json({ success: false, message: 'You already reviewed this order' });
         }
 
+        const foodPhotoUrl = req.files?.foodPhoto?.[0]
+            ? `/uploads/reviews/${req.files.foodPhoto[0].filename}`
+            : '';
+        const feedbackImageUrls = Array.isArray(req.files?.feedbackImages)
+            ? req.files.feedbackImages.map((file) => `/uploads/reviews/${file.filename}`)
+            : [];
+
         const review = await Review.create({
             user: req.user._id,
             order: orderId,
             food: food || null,
             rating,
             comment: trimmedComment,
+            foodPhotoUrl,
+            feedbackImageUrls,
         });
 
         if (food) {

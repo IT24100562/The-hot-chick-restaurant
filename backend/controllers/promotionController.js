@@ -44,7 +44,7 @@ const createPromotion = async (req, res) => {
 
         let image = '';
         if (req.file) {
-            image = `/uploads/${req.file.filename}`;
+            image = `/uploads/promotions/${req.file.filename}`;
         }
 
         const promotion = await Promotion.create({
@@ -74,7 +74,7 @@ const updatePromotion = async (req, res) => {
     try {
         const updateData = { ...req.body };
         if (req.file) {
-            updateData.image = `/uploads/${req.file.filename}`;
+            updateData.image = `/uploads/promotions/${req.file.filename}`;
         }
 
         const promotion = await Promotion.findByIdAndUpdate(req.params.id, updateData, {

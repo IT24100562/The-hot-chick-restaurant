@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, TextInput, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, TextInput, Alert, Image, ScrollView } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import colors from '../../styles/colors';
 import { PremiumButton, PremiumCard } from '../../components';
+import { buildFileUrl } from '../../utils/media';
 
 export default function ReviewScreen({ navigation, route }) {
     const { foodId, foodName, orderId } = route.params || {};
@@ -16,6 +18,34 @@ export default function ReviewScreen({ navigation, route }) {
     const [submitting, setSubmitting] = useState(false);
     const [orderReview, setOrderReview] = useState(null);
     const [errors, setErrors] = useState({ rating: '', comment: '' });
+    const [foodPhoto, setFoodPhoto] = useState(null);
+    const [feedbackImages, setFeedbackImages] = useState([]);
+    const pickFoodPhoto = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.8,
+        });
+
+        if (!result.canceled) {
+            setFoodPhoto(result.assets[0]);
+        }
+    };
+
+    const pickFeedbackImage = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.8,
+        });
+
+        if (!result.canceled) {
+            setFeedbackImages((current) => [...current, result.assets[0]]);
+        }
+    };
+
 
     useEffect(() => {
         if (foodId) {
@@ -79,10 +109,42 @@ export default function ReviewScreen({ navigation, route }) {
 
         try {
             setSubmitting(true);
-            await api.post('/api/reviews', { orderId, food: foodId, rating, comment: comment.trim() });
-            setOrderReview({ rating, comment: comment.trim(), createdAt: new Date().toISOString() });
+            const formData = new FormData();
+            formData.append('orderId', orderId);
+            formData.append('food', foodId || '');
+            formData.append('rating', String(rating));
+            formData.append('comment', comment.trim());
+
+            if (foodPhoto?.uri) {
+                const fileName = foodPhoto.name || foodPhoto.uri.split('/').pop() || `review-${Date.now()}.jpg`;
+                const ext = fileName.split('.').pop() || 'jpg';
+                formData.append('foodPhoto', {
+                    uri: foodPhoto.uri,
+                    name: fileName,
+                    type: foodPhoto.mimeType || `image/${ext}`,
+                });
+            }
+
+            feedbackImages.forEach((asset, index) => {
+                if (!asset?.uri) return;
+                const fileName = asset.name || asset.uri.split('/').pop() || `feedback-${index}.jpg`;
+                const ext = fileName.split('.').pop() || 'jpg';
+                formData.append('feedbackImages', {
+                    uri: asset.uri,
+                    name: fileName,
+                    type: asset.mimeType || `image/${ext}`,
+                });
+            });
+
+            const res = await api.post('/api/reviews', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            const createdReview = res.data?.data || { rating, comment: comment.trim(), createdAt: new Date().toISOString() };
+            setOrderReview(createdReview);
             setRating(0);
             setComment('');
+            setFoodPhoto(null);
+            setFeedbackImages([]);
             if (foodId) {
                 await fetchReviews();
             }
@@ -163,6 +225,34 @@ export default function ReviewScreen({ navigation, route }) {
                                 maxLength={300}
                             />
                             {errors.comment ? <Text style={styles.errorText}>{errors.comment}</Text> : null}
+                            <View style={styles.uploadArea}>
+                                <TouchableOpacity style={styles.uploadBtn} onPress={pickFoodPhoto}>
+                                    <MaterialIcons name="photo-camera" size={16} color={colors.primary} />
+                                    <Text style={styles.uploadBtnText}>{foodPhoto ? 'Change food photo' : 'Add food photo'}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.uploadBtn} onPress={pickFeedbackImage}>
+                                    <MaterialIcons name="add-photo-alternate" size={16} color={colors.primary} />
+                                    <Text style={styles.uploadBtnText}>Add feedback image</Text>
+                                </TouchableOpacity>
+                            </View>
+                            {foodPhoto ? <Text style={styles.uploadHint}>Food photo selected: {foodPhoto.name || 'image'}</Text> : null}
+                            {feedbackImages.length > 0 ? <Text style={styles.uploadHint}>{feedbackImages.length} feedback image(s) selected</Text> : null}
+                            {(foodPhoto || feedbackImages.length > 0) ? (
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.previewRow}>
+                                    {foodPhoto ? (
+                                        <View style={styles.previewThumbWrap}>
+                                            <Image source={{ uri: foodPhoto.uri }} style={styles.previewThumb} />
+                                            <Text style={styles.previewLabel}>Food photo</Text>
+                                        </View>
+                                    ) : null}
+                                    {feedbackImages.map((asset, index) => (
+                                        <View key={`${asset.uri}-${index}`} style={styles.previewThumbWrap}>
+                                            <Image source={{ uri: asset.uri }} style={styles.previewThumb} />
+                                            <Text style={styles.previewLabel}>Feedback {index + 1}</Text>
+                                        </View>
+                                    ))}
+                                </ScrollView>
+                            ) : null}
                             <PremiumButton
                                 title={submitting ? 'Submitting...' : 'Submit Review'}
                                 onPress={handleSubmit}
@@ -192,6 +282,20 @@ export default function ReviewScreen({ navigation, route }) {
                             <Text style={styles.reviewDate}>{new Date(item.createdAt).toLocaleDateString()}</Text>
                         </View>
                         <Text style={styles.reviewText}>{item.comment}</Text>
+                        {item.foodPhotoUrl ? (
+                            <Image source={{ uri: buildFileUrl(item.foodPhotoUrl, item.updatedAt || item.createdAt || item._id) }} style={styles.reviewImage} />
+                        ) : null}
+                        {Array.isArray(item.feedbackImageUrls) && item.feedbackImageUrls.length > 0 ? (
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.reviewGallery}>
+                                {item.feedbackImageUrls.map((url, index) => (
+                                    <Image
+                                        key={`${url}-${index}`}
+                                        source={{ uri: buildFileUrl(url, item.updatedAt || item.createdAt || item._id) }}
+                                        style={styles.reviewGalleryImage}
+                                    />
+                                ))}
+                            </ScrollView>
+                        ) : null}
                         {item.adminReply ? (
                             <View style={styles.adminReply}>
                                 <View style={styles.adminReplyLabel}>
@@ -227,6 +331,14 @@ const styles = StyleSheet.create({
     writeTitle: { fontSize: 13, fontWeight: '700', color: colors.textPrimary, marginBottom: 6 },
     starsRow: { flexDirection: 'row', gap: 2, marginBottom: 8 },
     commentInput: { minHeight: 70, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: 12, padding: 10, color: colors.textPrimary, backgroundColor: 'rgba(255,255,255,0.05)', marginBottom: 10 },
+    uploadArea: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 8 },
+    uploadBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: '#FFF', borderWidth: 1, borderColor: colors.glassBorder },
+    uploadBtnText: { color: colors.primary, fontSize: 11, fontWeight: '700' },
+    uploadHint: { fontSize: 11, color: colors.textMuted, marginBottom: 8 },
+    previewRow: { marginBottom: 8 },
+    previewThumbWrap: { marginRight: 8, alignItems: 'center' },
+    previewThumb: { width: 70, height: 70, borderRadius: 12 },
+    previewLabel: { fontSize: 10, color: colors.textMuted, marginTop: 4 },
     errorText: { color: colors.danger, fontSize: 11, marginBottom: 8 },
     reviewSummaryBox: { backgroundColor: 'rgba(22,163,74,0.08)', borderRadius: 12, padding: 10, marginBottom: 10 },
     reviewSummaryText: { fontSize: 12, color: colors.textSecondary, lineHeight: 18, marginTop: 6 },
@@ -239,6 +351,9 @@ const styles = StyleSheet.create({
     reviewerName: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
     reviewDate: { fontSize: 10, color: colors.textMuted },
     reviewText: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
+    reviewImage: { width: '100%', height: 180, borderRadius: 12, marginTop: 10 },
+    reviewGallery: { marginTop: 10 },
+    reviewGalleryImage: { width: 90, height: 90, borderRadius: 12, marginRight: 8 },
     adminReply: { backgroundColor: 'rgba(22,163,74,0.08)', borderRadius: 10, padding: 10, marginTop: 8, borderLeftWidth: 3, borderLeftColor: colors.primary },
     adminReplyLabel: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
     adminReplyTitle: { fontSize: 11, color: colors.primary, fontWeight: '700' },

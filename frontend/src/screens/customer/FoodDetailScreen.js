@@ -4,11 +4,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import api, { API_BASE_URL } from '../../api/axios';
+import api from '../../api/axios';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import colors from '../../styles/colors';
 import { PremiumButton, PremiumCard } from '../../components';
+import { buildFileUrl } from '../../utils/media';
 
 const { width } = Dimensions.get('window');
 
@@ -108,7 +109,10 @@ export default function FoodDetailScreen({ navigation, route }) {
                 {/* Hero Section */}
                 <View style={styles.heroContainer}>
                     {food.image ? (
-                        <Image source={{ uri: `${API_BASE_URL}${food.image}` }} style={styles.heroImage} />
+                        <Image
+                            source={{ uri: buildFileUrl(food.image, food.updatedAt || food.createdAt || food._id) }}
+                            style={styles.heroImage}
+                        />
                     ) : (
                         <View style={[styles.heroImage, { backgroundColor: colors.backgroundLight }]}>
                             <MaterialIcons name="restaurant" size={80} color={colors.textMuted} />
