@@ -68,7 +68,7 @@ const createCategory = async (req, res) => {
 
         let image = '';
         if (req.file) {
-            image = `/uploads/${req.file.filename}`;
+            image = `/uploads/categories/${req.file.filename}`;
         }
 
         const category = await Category.create({
@@ -124,7 +124,7 @@ const updateCategory = async (req, res) => {
         }
 
         if (req.file) {
-            updateData.image = `/uploads/${req.file.filename}`;
+            updateData.image = `/uploads/categories/${req.file.filename}`;
         }
 
         const category = await Category.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true });

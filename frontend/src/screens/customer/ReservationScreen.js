@@ -12,9 +12,11 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as DocumentPicker from 'expo-document-picker';
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import colors from '../../styles/colors';
+import { buildFileUrl } from '../../utils/media';
 
 const TIME_SLOTS = [
     '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM',
@@ -124,6 +126,7 @@ export default function ReservationScreen({ navigation }) {
     const [availableTables, setAvailableTables] = useState(FALLBACK_TABLES);
     const [formErrors, setFormErrors] = useState({});
     const [message, setMessage] = useState(null);
+    const [confirmationPdf, setConfirmationPdf] = useState(null);
     const initialDateTime = useMemo(getInitialReservationDateTime, []);
     const [form, setForm] = useState({
         guestName: user?.name || '',
@@ -147,6 +150,22 @@ export default function ReservationScreen({ navigation }) {
     const updateForm = (updates) => {
         setMessage(null);
         setForm((current) => ({ ...current, ...updates }));
+    };
+
+    const pickConfirmationPdf = async () => {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: 'application/pdf',
+                copyToCacheDirectory: true,
+                multiple: false,
+            });
+
+            if (!result.canceled && result.assets?.[0]) {
+                setConfirmationPdf(result.assets[0]);
+            }
+        } catch (error) {
+            Alert.alert('Upload Error', 'Could not select the PDF file.');
+        }
     };
 
     const validateForm = (currentForm, tables = availableTables) => {
@@ -270,7 +289,27 @@ export default function ReservationScreen({ navigation }) {
                 guestEmail: form.guestEmail.trim(),
                 tableNumber: form.tableNumber || undefined,
             };
-            const res = await api.post('/api/reservations', payload);
+            let res;
+            if (confirmationPdf?.uri) {
+                const formData = new FormData();
+                Object.entries(payload).forEach(([key, value]) => {
+                    if (value === undefined || value === null) return;
+                    formData.append(key, String(value));
+                });
+
+                const fileName = confirmationPdf.name || confirmationPdf.uri.split('/').pop() || `reservation-${Date.now()}.pdf`;
+                formData.append('confirmationPdf', {
+                    uri: confirmationPdf.uri,
+                    name: fileName,
+                    type: confirmationPdf.mimeType || 'application/pdf',
+                });
+
+                res = await api.post('/api/reservations', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
+            } else {
+                res = await api.post('/api/reservations', payload);
+            }
             const reserved = res.data?.data;
             const tableText = reserved?.tableNumber ? ` at Table ${reserved.tableNumber}` : '';
 
@@ -280,6 +319,7 @@ export default function ReservationScreen({ navigation }) {
             });
             Alert.alert('Reservation Confirmed', `Your table is booked for ${form.date} at ${form.timeSlot}${tableText}.`);
             setShowForm(false);
+            setConfirmationPdf(null);
             await fetchMyReservations();
             await fetchAvailability();
         } catch (e) {
@@ -533,6 +573,15 @@ export default function ReservationScreen({ navigation }) {
                         />
                         {formErrors.specialRequests ? <Text style={styles.errorText}>{formErrors.specialRequests}</Text> : null}
 
+                        <Text style={styles.fieldLabel}>Confirmation PDF (Optional)</Text>
+                        <TouchableOpacity style={styles.uploadBtn} onPress={pickConfirmationPdf}>
+                            <Ionicons name="document-attach-outline" size={18} color={colors.primary} />
+                            <Text style={styles.uploadBtnText} numberOfLines={1}>
+                                {confirmationPdf?.name || 'Attach PDF'}
+                            </Text>
+                        </TouchableOpacity>
+                        {confirmationPdf ? <Text style={styles.uploadHint}>Selected file will be uploaded with this reservation.</Text> : null}
+
                         <TouchableOpacity
                             style={[styles.submitBtn, isSubmitDisabled && { opacity: 0.6 }]}
                             onPress={submitReservation}
@@ -602,6 +651,18 @@ export default function ReservationScreen({ navigation }) {
                                     ) : null}
                                 </View>
                                 {r.specialRequests ? <Text style={styles.resNotes}>{r.specialRequests}</Text> : null}
+                                {r.confirmationPdfUrl ? (
+                                    <TouchableOpacity style={styles.fileLink} onPress={() => Alert.alert('Confirmation PDF', r.confirmationPdfUrl)}>
+                                        <Ionicons name="document-outline" size={14} color={colors.primary} />
+                                        <Text style={styles.fileLinkText}>Confirmation PDF uploaded</Text>
+                                    </TouchableOpacity>
+                                ) : null}
+                                {r.qrCodeUrl ? (
+                                    <View style={styles.qrWrap}>
+                                        <Text style={styles.qrLabel}>QR Code URL</Text>
+                                        <Text style={styles.qrUrl}>{buildFileUrl(r.qrCodeUrl, r.updatedAt || r.createdAt || r._id)}</Text>
+                                    </View>
+                                ) : null}
                                 {['pending', 'confirmed'].includes(r.status) && (
                                     <TouchableOpacity style={styles.cancelResBtn} onPress={() => cancelReservation(r._id)}>
                                         <Ionicons name="close-circle-outline" size={16} color={colors.danger} />
@@ -706,6 +767,19 @@ const styles = StyleSheet.create({
         borderColor: colors.glassBorder,
         textAlignVertical: 'top',
     },
+    uploadBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: colors.background,
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        minHeight: 50,
+        borderWidth: 1.5,
+        borderColor: colors.glassBorder,
+    },
+    uploadBtnText: { flex: 1, fontSize: 14, color: colors.textPrimary, fontWeight: '600' },
+    uploadHint: { color: colors.textMuted, fontSize: 11, marginTop: 6 },
     submitBtn: { borderRadius: 16, overflow: 'hidden', marginTop: 20 },
     submitGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 15 },
     submitText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
@@ -737,6 +811,11 @@ const styles = StyleSheet.create({
     resInfoItem: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.backgroundElevated, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
     resInfoText: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
     resNotes: { fontSize: 12, color: colors.textMuted, marginTop: 10, fontStyle: 'italic' },
+    fileLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+    fileLinkText: { color: colors.primary, fontSize: 12, fontWeight: '700' },
+    qrWrap: { marginTop: 10, padding: 10, borderRadius: 10, backgroundColor: colors.backgroundElevated },
+    qrLabel: { fontSize: 11, fontWeight: '700', color: colors.textPrimary },
+    qrUrl: { fontSize: 10, color: colors.textMuted, marginTop: 4 },
     cancelResBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: `${colors.danger}30`, justifyContent: 'center' },
     cancelResBtnText: { fontSize: 13, color: colors.danger, fontWeight: '600' },
 });

@@ -1,5 +1,7 @@
 const Stripe = require('stripe');
 const Order = require('../models/Order');
+const Payment = require('../models/Payment');
+const { isDecimal } = require('../utils/validation');
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const isStripeKeyConfigured =
@@ -7,6 +9,124 @@ const isStripeKeyConfigured =
     (stripeSecretKey.startsWith('sk_test_') || stripeSecretKey.startsWith('sk_live_'));
 
 const stripe = isStripeKeyConfigured ? new Stripe(stripeSecretKey) : null;
+
+const buildReceiptUrl = (file) => (file ? `/uploads/payments/${file.filename}` : '');
+
+const getPaymentByIdWithAccess = async (paymentId, user) => {
+    const payment = await Payment.findById(paymentId).populate('order', 'totalAmount status').populate('user', 'name email');
+    if (!payment) {
+        return { payment: null, error: { status: 404, message: 'Payment not found' } };
+    }
+
+    const isOwner = payment.user?._id?.toString() === user._id.toString();
+    if (!isOwner && user.role !== 'admin') {
+        return { payment: null, error: { status: 403, message: 'Not authorized' } };
+    }
+
+    return { payment, error: null };
+};
+
+const createPayment = async (req, res) => {
+    try {
+        const { orderId, amount, method, status, reference } = req.body;
+
+        if (!isDecimal(amount)) {
+            return res.status(400).json({ success: false, message: 'Invalid payment amount' });
+        }
+
+        let order = null;
+        if (orderId) {
+            order = await Order.findById(orderId);
+            if (!order) {
+                return res.status(404).json({ success: false, message: 'Order not found' });
+            }
+
+            if (order.userId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+                return res.status(403).json({ success: false, message: 'Not authorized' });
+            }
+        }
+
+        const payment = await Payment.create({
+            user: req.user._id,
+            order: order ? order._id : null,
+            amount,
+            method: method || 'cash',
+            status: status || 'pending',
+            reference: reference || '',
+            receiptUrl: buildReceiptUrl(req.file),
+        });
+
+        const populated = await payment.populate('order', 'totalAmount status');
+
+        res.status(201).json({
+            success: true,
+            message: 'Payment recorded',
+            data: populated,
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const getMyPayments = async (req, res) => {
+    try {
+        const payments = await Payment.find({ user: req.user._id })
+            .populate('order', 'totalAmount status')
+            .sort({ createdAt: -1 });
+
+        res.json({ success: true, count: payments.length, data: payments });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const getAllPayments = async (req, res) => {
+    try {
+        const payments = await Payment.find()
+            .populate('order', 'totalAmount status')
+            .populate('user', 'name email')
+            .sort({ createdAt: -1 });
+
+        res.json({ success: true, count: payments.length, data: payments });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const getPayment = async (req, res) => {
+    try {
+        const { payment, error } = await getPaymentByIdWithAccess(req.params.id, req.user);
+        if (error) {
+            return res.status(error.status).json({ success: false, message: error.message });
+        }
+
+        res.json({ success: true, data: payment });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const updatePayment = async (req, res) => {
+    try {
+        const { payment, error } = await getPaymentByIdWithAccess(req.params.id, req.user);
+        if (error) {
+            return res.status(error.status).json({ success: false, message: error.message });
+        }
+
+        const { status, method, reference } = req.body;
+        if (status) payment.status = status;
+        if (method) payment.method = method;
+        if (reference !== undefined) payment.reference = reference;
+        if (req.file) payment.receiptUrl = buildReceiptUrl(req.file);
+
+        await payment.save();
+
+        const populated = await payment.populate('order', 'totalAmount status');
+        res.json({ success: true, message: 'Payment updated', data: populated });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
 
 const getPaymentConfig = async (req, res) => {
     return res.json({
@@ -160,4 +280,9 @@ module.exports = {
     getPaymentConfig,
     createStripeCheckoutSession,
     verifyStripeCheckoutSession,
+    createPayment,
+    getMyPayments,
+    getAllPayments,
+    getPayment,
+    updatePayment,
 };

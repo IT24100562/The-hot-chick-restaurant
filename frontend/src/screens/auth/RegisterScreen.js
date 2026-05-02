@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform, ImageBackground } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform, ImageBackground, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import colors from '../../styles/colors';
 import {
@@ -24,6 +25,7 @@ export default function RegisterScreen({ navigation }) {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [role, setRole] = useState('customer');
+    const [avatarAsset, setAvatarAsset] = useState(null);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({
         name: '',
@@ -61,6 +63,19 @@ export default function RegisterScreen({ navigation }) {
         return '';
     };
 
+    const pickAvatar = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+        });
+
+        if (!result.canceled) {
+            setAvatarAsset(result.assets[0]);
+        }
+    };
+
     const handleRegister = async () => {
         const nextErrors = {
             name: validateField('name', name),
@@ -76,7 +91,7 @@ export default function RegisterScreen({ navigation }) {
             return;
         }
         setLoading(true);
-        const result = await register(name, email, password, phone, '', role);
+        const result = await register(name, email, password, phone, '', role, avatarAsset);
         setLoading(false);
         if (!result.success) {
             Alert.alert('Registration Failed', result.message || 'Unable to create account');
@@ -111,6 +126,16 @@ export default function RegisterScreen({ navigation }) {
                     </View>
 
                     <View style={styles.formCard}>
+                        <TouchableOpacity style={styles.avatarPicker} onPress={pickAvatar} disabled={loading}>
+                            {avatarAsset?.uri ? (
+                                <Image source={{ uri: avatarAsset.uri }} style={styles.avatarPreview} />
+                            ) : (
+                                <>
+                                    <Ionicons name="camera" size={22} color={colors.textMuted} />
+                                    <Text style={styles.avatarLabel}>Upload profile photo (optional)</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
                         <View style={styles.inputContainer}>
                             <Ionicons name="person-outline" size={20} color={colors.textMuted} style={styles.inputIcon} />
                             <TextInput
@@ -289,6 +314,19 @@ const styles = StyleSheet.create({
         shadowRadius: 22,
         elevation: 8,
     },
+    avatarPicker: {
+        height: 120,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: '#DCFCE7',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 14,
+        overflow: 'hidden',
+        backgroundColor: '#F0FDF4',
+    },
+    avatarPreview: { width: '100%', height: '100%', resizeMode: 'cover' },
+    avatarLabel: { color: colors.textMuted, fontSize: 12, marginTop: 6, fontWeight: '600' },
     inputContainer: {
         flexDirection: 'row', alignItems: 'center',
         backgroundColor: '#FFFFFF', borderWidth: 1,

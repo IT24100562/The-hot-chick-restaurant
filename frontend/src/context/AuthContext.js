@@ -50,9 +50,29 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const register = async (name, email, password, phone, address, role = 'customer') => {
+    const register = async (name, email, password, phone, address, role = 'customer', avatarAsset = null) => {
         try {
-            const res = await api.post('/api/auth/register', { name, email, password, phone, address, role });
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('email', email);
+            formData.append('password', password);
+            formData.append('phone', phone || '');
+            formData.append('address', address || '');
+            formData.append('role', role || 'customer');
+
+            if (avatarAsset?.uri) {
+                const fileName = avatarAsset.uri.split('/').pop() || `avatar-${Date.now()}.jpg`;
+                const ext = fileName.split('.').pop() || 'jpg';
+                formData.append('avatar', {
+                    uri: avatarAsset.uri,
+                    name: fileName,
+                    type: `image/${ext}`,
+                });
+            }
+
+            const res = await api.post('/api/auth/register', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
             if (res.data.success) {
                 const { token: newToken, ...userData } = res.data.data;
                 await AsyncStorage.setItem('token', newToken);
@@ -77,8 +97,12 @@ export const AuthProvider = ({ children }) => {
     };
 
     const updateUser = (updatedData) => {
-        setUser((prev) => ({ ...prev, ...updatedData }));
-        AsyncStorage.setItem('user', JSON.stringify({ ...user, ...updatedData }));
+        setUser((prev) => {
+            const { token: _ignoredToken, ...safeData } = updatedData || {};
+            const nextUser = { ...prev, ...safeData };
+            AsyncStorage.setItem('user', JSON.stringify(nextUser));
+            return nextUser;
+        });
     };
 
     return (

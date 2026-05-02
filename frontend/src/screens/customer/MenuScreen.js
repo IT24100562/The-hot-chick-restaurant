@@ -12,9 +12,10 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import api, { API_BASE_URL } from '../../api/axios';
+import api from '../../api/axios';
 import { useCart } from '../../context/CartContext';
 import { PremiumButton, PremiumCard, EmptyState } from '../../components';
+import { buildFileUrl } from '../../utils/media';
 
 export default function MenuScreen({ navigation, route }) {
   const { categoryId, categoryName } = route.params || {};
@@ -119,7 +120,7 @@ export default function MenuScreen({ navigation, route }) {
           <View style={styles.imageBox}>
             {food.image ? (
               <Image
-                source={{ uri: `${API_BASE_URL}${food.image}` }}
+              source={{ uri: buildFileUrl(food.image, food.updatedAt || food.createdAt || food._id) }}
                 style={{ width: '100%', height: '100%' }}
               />
             ) : (
@@ -184,7 +185,7 @@ export default function MenuScreen({ navigation, route }) {
           <View style={styles.listImageBox}>
             {food.image ? (
               <Image
-                source={{ uri: `${API_BASE_URL}${food.image}` }}
+              source={{ uri: buildFileUrl(food.image, food.updatedAt || food.createdAt || food._id) }}
                 style={{ width: '100%', height: '100%', borderRadius: 10 }}
               />
             ) : (

@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, TextInput, ScrollView, ImageBackground } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, TextInput, ScrollView, ImageBackground, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
 import colors from '../../styles/colors';
 import { allowAlphaSpace, allowNumeric, isAlphaSpace, trimSpaces } from '../../utils/validation';
+import { buildFileUrl } from '../../utils/media';
 
 const GUEST_IMAGES = {
     hero: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1400&q=80',
@@ -19,6 +21,7 @@ export default function ProfileScreen({ navigation }) {
     const [name, setName] = useState(user?.name || '');
     const [phone, setPhone] = useState(user?.phone || '');
     const [address, setAddress] = useState(user?.address || '');
+    const [avatarAsset, setAvatarAsset] = useState(null);
     const [errors, setErrors] = useState({ name: '', phone: '', address: '' });
 
     const validateField = (field, value) => {
@@ -38,6 +41,19 @@ export default function ProfileScreen({ navigation }) {
         return '';
     };
 
+    const pickAvatar = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+        });
+
+        if (!result.canceled) {
+            setAvatarAsset(result.assets[0]);
+        }
+    };
+
     const handleSave = async () => {
         const nextErrors = {
             name: validateField('name', name),
@@ -50,9 +66,27 @@ export default function ProfileScreen({ navigation }) {
             return;
         }
         try {
-            const res = await api.put('/api/auth/profile', { name, phone, address });
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('phone', phone || '');
+            formData.append('address', address || '');
+
+            if (avatarAsset?.uri) {
+                const fileName = avatarAsset.uri.split('/').pop() || `avatar-${Date.now()}.jpg`;
+                const ext = fileName.split('.').pop() || 'jpg';
+                formData.append('avatar', {
+                    uri: avatarAsset.uri,
+                    name: fileName,
+                    type: `image/${ext}`,
+                });
+            }
+
+            const res = await api.put('/api/auth/profile', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
             if (res.data.success) {
-                updateUser({ name, phone, address });
+                updateUser(res.data.data);
+                setAvatarAsset(null);
                 setEditing(false);
                 Alert.alert('Success', 'Profile updated successfully');
             }
@@ -146,9 +180,26 @@ export default function ProfileScreen({ navigation }) {
 
                 {/* Profile Card */}
                 <View style={styles.profileCard}>
-                    <LinearGradient colors={colors.gradientPrimary} style={styles.avatarCircle}>
-                        <Text style={styles.avatarText}>{user?.name?.[0]?.toUpperCase() || 'U'}</Text>
-                    </LinearGradient>
+                    <TouchableOpacity onPress={editing ? pickAvatar : undefined} activeOpacity={editing ? 0.7 : 1}>
+                        {avatarAsset?.uri || user?.avatar ? (
+                            <Image
+                                source={{
+                                    uri: avatarAsset?.uri || buildFileUrl(user?.avatar, user?.updatedAt || user?._id),
+                                }}
+                                style={styles.avatarImage}
+                            />
+                        ) : (
+                            <LinearGradient colors={colors.gradientPrimary} style={styles.avatarCircle}>
+                                <Text style={styles.avatarText}>{user?.name?.[0]?.toUpperCase() || 'U'}</Text>
+                            </LinearGradient>
+                        )}
+                    </TouchableOpacity>
+                    {editing ? (
+                        <TouchableOpacity onPress={pickAvatar} style={styles.changeAvatarBtn}>
+                            <Ionicons name="camera" size={14} color={colors.primary} />
+                            <Text style={styles.changeAvatarText}>Change photo</Text>
+                        </TouchableOpacity>
+                    ) : null}
                     <Text style={styles.userName}>{user?.name}</Text>
                     <Text style={styles.userEmail}>{user?.email}</Text>
                     <View style={[styles.roleBadge, isAdmin && styles.adminBadge]}>
@@ -254,7 +305,10 @@ const styles = StyleSheet.create({
         padding: 28, marginHorizontal: 16, marginTop: 20,
     },
     avatarCircle: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center' },
+    avatarImage: { width: 80, height: 80, borderRadius: 40 },
     avatarText: { fontSize: 32, fontWeight: '800', color: '#FFF' },
+    changeAvatarBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+    changeAvatarText: { color: colors.primary, fontSize: 12, fontWeight: '700' },
     userName: { fontSize: 22, fontWeight: '700', color: colors.textPrimary, marginTop: 14 },
     userEmail: { fontSize: 13, color: colors.textMuted, marginTop: 4 },
     roleBadge: {

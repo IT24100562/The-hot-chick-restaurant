@@ -4,8 +4,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import api, { API_BASE_URL } from '../../api/axios';
+import api from '../../api/axios';
 import colors from '../../styles/colors';
+import { buildFileUrl } from '../../utils/media';
 import {
     allowAlphaSpace,
     allowDecimal,
@@ -179,7 +180,12 @@ export default function AddEditFood({ navigation, route }) {
                     {image ? (
                         <Image source={{ uri: image.uri }} style={styles.selectedImage} />
                     ) : editFood?.image ? (
-                        <Image source={{ uri: `${API_BASE_URL}${editFood.image}` }} style={styles.selectedImage} />
+                        <Image
+                            source={{
+                                uri: buildFileUrl(editFood.image, editFood.updatedAt || editFood.createdAt || editFood._id),
+                            }}
+                            style={styles.selectedImage}
+                        />
                     ) : (
                         <View style={styles.imagePickerContent}>
                             <Ionicons name="camera" size={36} color={colors.textMuted} />

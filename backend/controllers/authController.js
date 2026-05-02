@@ -52,6 +52,8 @@ const register = async (req, res) => {
         const validRoles = ['customer', 'delivery'];
         const userRole = role && validRoles.includes(role) ? role : 'customer';
 
+        const avatarUrl = req.file ? `/uploads/users/${req.file.filename}` : '';
+
         // Create user
         const user = await User.create({
             name: trimmedName,
@@ -61,6 +63,7 @@ const register = async (req, res) => {
             address: address || '',
             role: userRole,
             status: 'active',
+            avatar: avatarUrl,
         });
 
         res.status(201).json({
@@ -73,6 +76,7 @@ const register = async (req, res) => {
                 phone: user.phone,
                 role: user.role,
                 status: user.status,
+                avatar: user.avatar,
                 token: generateToken(user._id),
             },
         });
@@ -211,7 +215,11 @@ const updateProfile = async (req, res) => {
                 }
                 user.address = trimmedAddress;
             }
-            user.avatar = req.body.avatar || user.avatar;
+            if (req.file) {
+                user.avatar = `/uploads/users/${req.file.filename}`;
+            } else if (req.body.avatar !== undefined) {
+                user.avatar = req.body.avatar || '';
+            }
 
             if (req.body.password) {
                 if (String(req.body.password).length < 6) {

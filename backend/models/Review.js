@@ -32,6 +32,14 @@ const reviewSchema = new mongoose.Schema(
             type: String,
             default: '',
         },
+        foodPhotoUrl: {
+            type: String,
+            default: '',
+        },
+        feedbackImageUrls: {
+            type: [String],
+            default: [],
+        },
         adminRepliedAt: {
             type: Date,
         },

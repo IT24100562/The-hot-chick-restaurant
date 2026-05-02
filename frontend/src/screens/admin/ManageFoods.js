@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import api, { API_BASE_URL } from '../../api/axios';
+import api from '../../api/axios';
 import colors from '../../styles/colors';
+import { buildFileUrl } from '../../utils/media';
 
 export default function ManageFoods({ navigation }) {
     const [foods, setFoods] = useState([]);
@@ -42,7 +43,10 @@ export default function ManageFoods({ navigation }) {
         <View style={styles.foodCard}>
             <View style={styles.foodImageWrap}>
                 {item.image ? (
-                    <Image source={{ uri: `${API_BASE_URL}${item.image}` }} style={styles.foodImage} />
+                    <Image
+                        source={{ uri: buildFileUrl(item.image, item.updatedAt || item.createdAt || item._id) }}
+                        style={styles.foodImage}
+                    />
                 ) : (
                     <View style={styles.foodPlaceholder}><Ionicons name="restaurant" size={24} color={colors.textMuted} /></View>
                 )}

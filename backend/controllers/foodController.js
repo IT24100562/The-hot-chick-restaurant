@@ -73,10 +73,11 @@ const createFood = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Preparation time must be numeric' });
         }
 
-        let image = '';
-        if (req.file) {
-            image = `/uploads/${req.file.filename}`;
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'Food image is required' });
         }
+
+        const image = `/uploads/foods/${req.file.filename}`;
 
         const food = await Food.create({
             name: trimmedName,
@@ -140,7 +141,7 @@ const updateFood = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Preparation time must be numeric' });
         }
         if (req.file) {
-            updateData.image = `/uploads/${req.file.filename}`;
+            updateData.image = `/uploads/foods/${req.file.filename}`;
         }
         if (updateData.ingredients && typeof updateData.ingredients === 'string') {
             updateData.ingredients = JSON.parse(updateData.ingredients);

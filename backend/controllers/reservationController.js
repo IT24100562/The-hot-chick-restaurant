@@ -1,4 +1,23 @@
 const Reservation = require('../models/Reservation');
+const path = require('path');
+const fs = require('fs');
+const QRCode = require('qrcode');
+
+const RESERVATION_UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'reservations');
+
+const ensureDir = (dirPath) => {
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+    }
+};
+
+const generateReservationQr = async (reservationId) => {
+    ensureDir(RESERVATION_UPLOAD_DIR);
+    const filename = `qr-${Date.now()}-${Math.round(Math.random() * 1e9)}.png`;
+    const filePath = path.join(RESERVATION_UPLOAD_DIR, filename);
+    await QRCode.toFile(filePath, `reservation:${reservationId}`, { width: 320, margin: 1 });
+    return `/uploads/reservations/${filename}`;
+};
 
 const RESTAURANT_TABLES = [
     { number: 1, capacity: 2 },
@@ -212,6 +231,8 @@ const createReservation = async (req, res) => {
             });
         }
 
+        const confirmationPdfUrl = req.file ? `/uploads/reservations/${req.file.filename}` : '';
+
         const reservation = await Reservation.create({
             user: req.user._id,
             guestName: value.guestName,
@@ -225,7 +246,11 @@ const createReservation = async (req, res) => {
             occasion: value.occasion,
             specialRequests: value.specialRequests,
             status: 'confirmed',
+            confirmationPdfUrl,
         });
+
+        reservation.qrCodeUrl = await generateReservationQr(reservation._id.toString());
+        await reservation.save();
 
         const populatedReservation = await reservation.populate('user', 'name email phone');
         const io = req.app.get('io');
