@@ -1,0 +1,44 @@
+# Ignore everything at the project root by default.
+*
+
+# Keep only the application folders and repository hygiene files.
+!frontend/
+!frontend/**
+!backend/
+!backend/**
+!.gitignore
+!README.md
+
+# Frontend source, config, and lockfiles.
+frontend/node_modules/
+frontend/.expo/
+frontend/.expo-shared/
+frontend/dist/
+frontend/build/
+frontend/web-build/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# Backend source, config, and lockfiles.
+backend/node_modules/
+backend/uploads/
+backend/dist/
+backend/build/
+backend/coverage/
+backend/.env
+backend/.env.*
+!backend/.env.example
+backend/npm-debug.log*
+backend/yarn-debug.log*
+backend/yarn-error.log*
+
+# Local/system files.
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+*.tmp
