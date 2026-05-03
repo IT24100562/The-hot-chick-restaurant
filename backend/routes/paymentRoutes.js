@@ -12,6 +12,7 @@ const {
 	getAllPayments,
 	getPayment,
 	updatePayment,
+	deletePayment,
 } = require('../controllers/paymentController');
 
 const paymentUpload = uploadImage('payments');
@@ -25,5 +26,6 @@ router.get('/', protect, getMyPayments);
 router.get('/all', protect, admin, getAllPayments);
 router.get('/:id', protect, getPayment);
 router.put('/:id', protect, paymentUpload.single('receipt'), updatePayment);
+router.delete('/:id', protect, admin, deletePayment);
 
 module.exports = router;

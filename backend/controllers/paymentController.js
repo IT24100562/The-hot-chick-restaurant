@@ -1,6 +1,7 @@
 const Stripe = require('stripe');
 const Order = require('../models/Order');
 const Payment = require('../models/Payment');
+const User = require('../models/User');
 const { isDecimal } = require('../utils/validation');
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -11,6 +12,43 @@ const isStripeKeyConfigured =
 const stripe = isStripeKeyConfigured ? new Stripe(stripeSecretKey) : null;
 
 const buildReceiptUrl = (file) => (file ? `/uploads/payments/${file.filename}` : '');
+const paymentMethods = ['cash', 'card', 'online', 'bank-transfer'];
+const paymentStatuses = ['pending', 'processing', 'paid', 'failed', 'refunded'];
+
+const syncOrderPayment = async (order, payment) => {
+    if (!order) return;
+
+    order.paymentMethod = payment.method === 'bank-transfer' ? 'online' : payment.method;
+    order.paymentStatus = payment.status === 'refunded' ? 'failed' : payment.status;
+    order.paymentReference = payment.reference || order.paymentReference || '';
+    await order.save();
+};
+
+const resolvePaymentUserAndOrder = async ({ orderId, userId, currentUser }) => {
+    let order = null;
+    let paymentUserId = currentUser._id;
+
+    if (orderId) {
+        order = await Order.findById(orderId);
+        if (!order) {
+            return { error: { status: 404, message: 'Order not found' } };
+        }
+
+        if (order.userId.toString() !== currentUser._id.toString() && currentUser.role !== 'admin') {
+            return { error: { status: 403, message: 'Not authorized' } };
+        }
+
+        paymentUserId = order.userId;
+    } else if (userId && currentUser.role === 'admin') {
+        const user = await User.findById(userId);
+        if (!user) {
+            return { error: { status: 404, message: 'User not found' } };
+        }
+        paymentUserId = user._id;
+    }
+
+    return { order, paymentUserId, error: null };
+};
 
 const getPaymentByIdWithAccess = async (paymentId, user) => {
     const payment = await Payment.findById(paymentId).populate('order', 'totalAmount status').populate('user', 'name email');
@@ -28,26 +66,32 @@ const getPaymentByIdWithAccess = async (paymentId, user) => {
 
 const createPayment = async (req, res) => {
     try {
-        const { orderId, amount, method, status, reference } = req.body;
+        const { orderId, userId, amount, method, status, reference } = req.body;
 
         if (!isDecimal(amount)) {
             return res.status(400).json({ success: false, message: 'Invalid payment amount' });
         }
 
-        let order = null;
-        if (orderId) {
-            order = await Order.findById(orderId);
-            if (!order) {
-                return res.status(404).json({ success: false, message: 'Order not found' });
-            }
+        if (method && !paymentMethods.includes(method)) {
+            return res.status(400).json({ success: false, message: 'Invalid payment method' });
+        }
 
-            if (order.userId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-                return res.status(403).json({ success: false, message: 'Not authorized' });
-            }
+        if (status && !paymentStatuses.includes(status)) {
+            return res.status(400).json({ success: false, message: 'Invalid payment status' });
+        }
+
+        const { order, paymentUserId, error } = await resolvePaymentUserAndOrder({
+            orderId,
+            userId,
+            currentUser: req.user,
+        });
+
+        if (error) {
+            return res.status(error.status).json({ success: false, message: error.message });
         }
 
         const payment = await Payment.create({
-            user: req.user._id,
+            user: paymentUserId,
             order: order ? order._id : null,
             amount,
             method: method || 'cash',
@@ -56,7 +100,12 @@ const createPayment = async (req, res) => {
             receiptUrl: buildReceiptUrl(req.file),
         });
 
-        const populated = await payment.populate('order', 'totalAmount status');
+        await syncOrderPayment(order, payment);
+
+        const populated = await payment.populate([
+            { path: 'order', select: 'totalAmount status' },
+            { path: 'user', select: 'name email' },
+        ]);
 
         res.status(201).json({
             success: true,
@@ -113,7 +162,42 @@ const updatePayment = async (req, res) => {
             return res.status(error.status).json({ success: false, message: error.message });
         }
 
-        const { status, method, reference } = req.body;
+        const { orderId, userId, amount, status, method, reference } = req.body;
+
+        if (amount !== undefined) {
+            if (!isDecimal(amount)) {
+                return res.status(400).json({ success: false, message: 'Invalid payment amount' });
+            }
+            payment.amount = amount;
+        }
+
+        if (method && !paymentMethods.includes(method)) {
+            return res.status(400).json({ success: false, message: 'Invalid payment method' });
+        }
+
+        if (status && !paymentStatuses.includes(status)) {
+            return res.status(400).json({ success: false, message: 'Invalid payment status' });
+        }
+
+        if (orderId !== undefined || userId !== undefined) {
+            if (req.user.role !== 'admin') {
+                return res.status(403).json({ success: false, message: 'Not authorized' });
+            }
+
+            const { order, paymentUserId, error: resolveError } = await resolvePaymentUserAndOrder({
+                orderId: orderId || null,
+                userId,
+                currentUser: req.user,
+            });
+
+            if (resolveError) {
+                return res.status(resolveError.status).json({ success: false, message: resolveError.message });
+            }
+
+            payment.order = order ? order._id : null;
+            payment.user = paymentUserId;
+        }
+
         if (status) payment.status = status;
         if (method) payment.method = method;
         if (reference !== undefined) payment.reference = reference;
@@ -121,8 +205,33 @@ const updatePayment = async (req, res) => {
 
         await payment.save();
 
-        const populated = await payment.populate('order', 'totalAmount status');
+        const linkedOrder = payment.order ? await Order.findById(payment.order._id || payment.order) : null;
+        await syncOrderPayment(linkedOrder, payment);
+
+        const populated = await payment.populate([
+            { path: 'order', select: 'totalAmount status' },
+            { path: 'user', select: 'name email' },
+        ]);
         res.json({ success: true, message: 'Payment updated', data: populated });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const deletePayment = async (req, res) => {
+    try {
+        const { payment, error } = await getPaymentByIdWithAccess(req.params.id, req.user);
+        if (error) {
+            return res.status(error.status).json({ success: false, message: error.message });
+        }
+
+        if (req.user.role !== 'admin' && payment.status === 'paid') {
+            return res.status(403).json({ success: false, message: 'Only admins can delete paid payments' });
+        }
+
+        await payment.deleteOne();
+
+        res.json({ success: true, message: 'Payment deleted' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -285,4 +394,5 @@ module.exports = {
     getAllPayments,
     getPayment,
     updatePayment,
+    deletePayment,
 };

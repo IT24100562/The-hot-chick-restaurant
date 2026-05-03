@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
-export const DeliveryMap = ({ onMapPress }) => {
+export const DeliveryMap = () => {
   return (
     <View style={styles.wrapper}>
       <MaterialIcons name="map" size={40} color="#16A34A" />
@@ -10,9 +10,6 @@ export const DeliveryMap = ({ onMapPress }) => {
       <Text style={styles.subtitle}>
         Use the address field or open Google Maps to choose a delivery location.
       </Text>
-      <TouchableOpacity style={styles.button} onPress={onMapPress}>
-        <Text style={styles.buttonText}>Use Address Instead</Text>
-      </TouchableOpacity>
     </View>
   );
 };
@@ -42,16 +39,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
     marginBottom: 14,
-  },
-  button: {
-    backgroundColor: '#16A34A',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  buttonText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '700',
   },
 });

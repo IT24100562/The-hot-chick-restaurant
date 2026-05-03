@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, Alert, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, Alert, TextInput, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,7 +27,7 @@ import {
 export default function CartScreen({ navigation }) {
 
     const { cartItems, updateQuantity, removeFromCart, clearCart, getTotal } = useCart();
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const tabBarHeight = useBottomTabBarHeight();
     const [paymentMethod, setPaymentMethod] = useState('cash');
     const [processingPayment, setProcessingPayment] = useState(false);
@@ -246,6 +246,14 @@ export default function CartScreen({ navigation }) {
 
             navigation.navigate('Orders');
         } catch (error) {
+            if (error.response?.status === 401) {
+                await logout();
+                navigation.navigate('Login');
+                Alert.alert('Session Expired', 'Please log in again before confirming your order.', [
+                    { text: 'Login', onPress: () => navigation.navigate('Login') },
+                ]);
+                return;
+            }
             Alert.alert('Error', error.response?.data?.message || 'Failed to place order');
         } finally {
             setProcessingPayment(false);
@@ -293,16 +301,12 @@ export default function CartScreen({ navigation }) {
                 )}
             </View>
 
-            <FlatList
-                data={cartItems}
-                keyExtractor={(item) => item._id}
-                renderItem={renderCartItem}
-                contentContainerStyle={[
-                    styles.listContent,
-                    { paddingBottom: tabBarHeight + (paymentMethod === 'card' ? 420 : 260) },
-                ]}
+            <ScrollView
+                contentContainerStyle={[styles.listContent, { paddingBottom: tabBarHeight + 24 }]}
                 showsVerticalScrollIndicator={false}
-                ListEmptyComponent={
+                keyboardShouldPersistTaps="handled"
+            >
+                {cartItems.length === 0 ? (
                     <View style={styles.emptyState}>
                         <Ionicons name="cart-outline" size={80} color={colors.textMuted} />
                         <Text style={styles.emptyTitle}>Your cart is empty</Text>
@@ -311,11 +315,12 @@ export default function CartScreen({ navigation }) {
                             <Text style={styles.browseText}>Browse Menu</Text>
                         </TouchableOpacity>
                     </View>
-                }
-            />
-
-            {cartItems.length > 0 && (
-                <View style={[styles.bottomSection, { bottom: tabBarHeight + 8 }] }>
+                ) : (
+                    <>
+                        {cartItems.map((item) => (
+                            <React.Fragment key={item._id}>{renderCartItem({ item })}</React.Fragment>
+                        ))}
+                <View style={styles.bottomSection}>
                     <Text style={styles.sectionTitle}>Delivery Location</Text>
                     <View style={styles.locationCard}>
                         <TextInput
@@ -473,7 +478,9 @@ export default function CartScreen({ navigation }) {
                         </LinearGradient>
                     </TouchableOpacity>
                 </View>
-            )}
+                    </>
+                )}
+            </ScrollView>
         </SafeAreaView>
     );
 }
@@ -518,13 +525,12 @@ const styles = StyleSheet.create({
     },
     browseText: { color: '#FFF', fontWeight: '700' },
     bottomSection: {
-        position: 'absolute', bottom: 0, left: 0, right: 0,
         backgroundColor: colors.backgroundLight, borderTopWidth: 1, borderTopColor: colors.glassBorder,
         padding: 20,
-        borderTopLeftRadius: 18,
-        borderTopRightRadius: 18,
+        borderRadius: 18,
+        marginTop: 8,
         shadowColor: colors.shadowColor,
-        shadowOffset: { width: 0, height: -4 },
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
         shadowRadius: 10,
         elevation: 8,

@@ -18,8 +18,16 @@ export const AuthProvider = ({ children }) => {
             const storedToken = await AsyncStorage.getItem('token');
             const storedUser = await AsyncStorage.getItem('user');
             if (storedToken && storedUser) {
-                setToken(storedToken);
-                setUser(JSON.parse(storedUser));
+                try {
+                    const res = await api.get('/api/auth/profile');
+                    setToken(storedToken);
+                    setUser(res.data.data || JSON.parse(storedUser));
+                } catch (_) {
+                    await AsyncStorage.removeItem('token');
+                    await AsyncStorage.removeItem('user');
+                    setToken(null);
+                    setUser(null);
+                }
             }
         } catch (error) {
             console.error('Error loading auth:', error);
