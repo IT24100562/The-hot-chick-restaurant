@@ -24,7 +24,7 @@ const toDateKey = (date) => {
 };
 
 export default function AdminDashboard({ navigation }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { width } = useWindowDimensions();
   const [errorMessage, setErrorMessage] = useState('');
   const [stats, setStats] = useState({
@@ -182,9 +182,14 @@ export default function AdminDashboard({ navigation }) {
             <Text style={styles.greeting}>Admin Dashboard</Text>
             <Text style={styles.subGreeting}>Welcome back, {user?.name?.split(' ')[0]}</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('AdminProfile')}>
-            <MaterialIcons name="account-circle" size={40} color="#16A34A" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.headerIconButton} onPress={() => navigation.navigate('AdminProfile')}>
+              <MaterialIcons name="account-circle" size={34} color="#16A34A" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerIconButton} onPress={logout}>
+              <MaterialIcons name="logout" size={28} color="#EF4444" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {errorMessage ? (
@@ -421,6 +426,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerIconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
   },
   errorBanner: {
     flexDirection: 'row',
