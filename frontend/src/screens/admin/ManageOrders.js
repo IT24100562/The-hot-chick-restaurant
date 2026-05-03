@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -5,21 +6,27 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../../api/axios';
 import colors from '../../styles/colors';
 
+
 const allStatuses = ['pending', 'preparing', 'delivered', 'cancelled'];
 const statusConfig = {
+
     pending: { icon: 'time', color: colors.pending },
     preparing: { icon: 'restaurant', color: colors.preparing },
     delivered: { icon: 'bicycle', color: colors.delivered },
     cancelled: { icon: 'close-circle', color: colors.cancelled },
+
 };
 
 const getNextStatuses = (currentStatus) => {
+
     if (currentStatus === 'pending') return ['preparing', 'cancelled'];
     if (currentStatus === 'preparing') return ['delivered', 'cancelled'];
     return [];
+
 };
 
 export default function ManageOrders() {
+
     const [orders, setOrders] = useState([]);
     const [filter, setFilter] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
@@ -37,9 +44,11 @@ export default function ManageOrders() {
         } catch (e) {
             Alert.alert('Error', e.userMessage || 'Failed to load orders');
         }
+
     };
 
     const fetchDeliveryUsers = async () => {
+
         try {
             const res = await api.get('/api/users');
             const deliveryOnly = (res.data.data || []).filter((u) => u.role === 'delivery');
@@ -47,11 +56,13 @@ export default function ManageOrders() {
         } catch (e) {
             Alert.alert('Error', e.userMessage || 'Failed to load delivery users');
         }
+
     };
 
     const onRefresh = async () => { setRefreshing(true); await fetchOrders(); setRefreshing(false); };
 
     const updateStatus = (orderId, currentStatus) => {
+
         const nextStatuses = getNextStatuses(currentStatus);
         if (nextStatuses.length === 0) {
             Alert.alert('Info', `Order is already ${currentStatus}`);
@@ -65,17 +76,20 @@ export default function ManageOrders() {
                     catch (e) { Alert.alert('Error', e.userMessage || 'Failed to update'); }
                 },
             })),
+
             { text: 'Cancel', style: 'cancel' },
         ]);
     };
 
     const assignDelivery = (orderId) => {
+
         if (deliveryUsers.length === 0) {
             Alert.alert('No Delivery Users', 'Create a delivery user first in Manage Users.');
             return;
         }
 
         Alert.alert(
+
             'Assign Delivery',
             'Select a delivery person',
             [
@@ -95,6 +109,7 @@ export default function ManageOrders() {
         );
     };
 
+    
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
