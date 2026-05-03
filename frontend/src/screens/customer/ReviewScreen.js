@@ -111,7 +111,9 @@ export default function ReviewScreen({ navigation, route }) {
             setSubmitting(true);
             const formData = new FormData();
             formData.append('orderId', orderId);
-            formData.append('food', foodId || '');
+            if (foodId) {
+                formData.append('food', foodId);
+            }
             formData.append('rating', String(rating));
             formData.append('comment', comment.trim());
 
@@ -190,6 +192,23 @@ export default function ReviewScreen({ navigation, route }) {
                         <View style={styles.reviewSummaryBox}>
                             {renderStars(orderReview.rating, () => {})}
                             <Text style={styles.reviewSummaryText}>{orderReview.comment}</Text>
+                            {orderReview.foodPhotoUrl ? (
+                                <Image
+                                    source={{ uri: buildFileUrl(orderReview.foodPhotoUrl, orderReview.updatedAt || orderReview.createdAt || orderReview._id) }}
+                                    style={styles.reviewImage}
+                                />
+                            ) : null}
+                            {Array.isArray(orderReview.feedbackImageUrls) && orderReview.feedbackImageUrls.length > 0 ? (
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.reviewGallery}>
+                                    {orderReview.feedbackImageUrls.map((url, index) => (
+                                        <Image
+                                            key={`${url}-${index}`}
+                                            source={{ uri: buildFileUrl(url, orderReview.updatedAt || orderReview.createdAt || orderReview._id) }}
+                                            style={styles.reviewGalleryImage}
+                                        />
+                                    ))}
+                                </ScrollView>
+                            ) : null}
                             <Text style={styles.reviewSummaryDate}>
                                 {new Date(orderReview.createdAt).toLocaleDateString()}
                             </Text>

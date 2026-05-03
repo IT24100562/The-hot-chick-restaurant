@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert, KeyboardAvoidingView, Platform, Image, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../../api/axios';
 import colors from '../../styles/colors';
+import { buildFileUrl } from '../../utils/media';
 
 export default function ManageReviews() {
     const [reviews, setReviews] = useState([]);
@@ -67,6 +68,23 @@ export default function ManageReviews() {
                             </View>
                         </View>
                         <Text style={styles.comment}>{item.comment}</Text>
+                        {item.foodPhotoUrl ? (
+                            <Image
+                                source={{ uri: buildFileUrl(item.foodPhotoUrl, item.updatedAt || item.createdAt || item._id) }}
+                                style={styles.reviewImage}
+                            />
+                        ) : null}
+                        {Array.isArray(item.feedbackImageUrls) && item.feedbackImageUrls.length > 0 ? (
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.reviewGallery}>
+                                {item.feedbackImageUrls.map((url, index) => (
+                                    <Image
+                                        key={`${url}-${index}`}
+                                        source={{ uri: buildFileUrl(url, item.updatedAt || item.createdAt || item._id) }}
+                                        style={styles.reviewGalleryImage}
+                                    />
+                                ))}
+                            </ScrollView>
+                        ) : null}
                         <Text style={styles.reviewDate}>{new Date(item.createdAt).toLocaleDateString()}</Text>
 
                         {item.adminReply && (
@@ -128,6 +146,9 @@ const styles = StyleSheet.create({
     reviewFood: { fontSize: 11, color: colors.textMuted },
     ratingBadge: { flexDirection: 'row', gap: 2 },
     comment: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 10 },
+    reviewImage: { width: '100%', height: 180, borderRadius: 12, marginTop: 10 },
+    reviewGallery: { marginTop: 10 },
+    reviewGalleryImage: { width: 88, height: 88, borderRadius: 12, marginRight: 8 },
     reviewDate: { fontSize: 10, color: colors.textMuted, marginTop: 6 },
     replyBox: { backgroundColor: 'rgba(255,107,53,0.08)', borderRadius: 10, padding: 10, marginTop: 10, borderLeftWidth: 3, borderLeftColor: colors.primary },
     replyLabel: { fontSize: 11, color: colors.primary, fontWeight: '700', marginBottom: 4 },

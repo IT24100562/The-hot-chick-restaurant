@@ -53,6 +53,12 @@ export default function FoodDetailScreen({ navigation, route }) {
         }
     };
 
+    const handleBack = () => {
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+        }
+    };
+
     const handleAddToCart = () => {
         if (!user) {
             Alert.alert('Login Required', 'Please login to add items to cart', [
@@ -67,7 +73,7 @@ export default function FoodDetailScreen({ navigation, route }) {
         }
 
         Alert.alert('✅ Added to Cart', `${quantity}x ${food.name} added!`, [
-            { text: 'Continue Shopping', style: 'cancel', onPress: () => navigation.goBack() },
+            { text: 'Continue Shopping', style: 'cancel', onPress: handleBack },
             { text: 'View Cart', onPress: () => navigation.navigate('CustomerMain', { screen: 'Cart' }) },
         ]);
     };
@@ -123,7 +129,7 @@ export default function FoodDetailScreen({ navigation, route }) {
                     </LinearGradient>
 
                     {/* Back Button */}
-                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+                    <TouchableOpacity style={styles.backButton} onPress={handleBack}>
                         <View style={styles.backButtonInner}>
                             <MaterialIcons name="arrow-back" size={22} color="#FFFFFF" />
                         </View>

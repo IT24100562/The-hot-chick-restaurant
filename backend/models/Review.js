@@ -15,7 +15,6 @@ const reviewSchema = new mongoose.Schema(
         food: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Food',
-            default: null,
         },
         rating: {
             type: Number,
@@ -47,9 +46,21 @@ const reviewSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-// One review per user per food (when food provided)
-reviewSchema.index({ user: 1, food: 1 }, { unique: true, sparse: true });
+// One review per user per food (only when a food is actually present)
+reviewSchema.index(
+    { user: 1, food: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { food: { $type: 'objectId' } },
+    }
+);
 // One review per user per order
-reviewSchema.index({ user: 1, order: 1 }, { unique: true, sparse: true });
+reviewSchema.index(
+    { user: 1, order: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { order: { $type: 'objectId' } },
+    }
+);
 
 module.exports = mongoose.model('Review', reviewSchema);

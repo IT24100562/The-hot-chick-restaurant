@@ -58,15 +58,20 @@ const createReview = async (req, res) => {
             ? req.files.feedbackImages.map((file) => `/uploads/reviews/${file.filename}`)
             : [];
 
-        const review = await Review.create({
+        const reviewData = {
             user: req.user._id,
             order: orderId,
-            food: food || null,
             rating,
             comment: trimmedComment,
             foodPhotoUrl,
             feedbackImageUrls,
-        });
+        };
+
+        if (food) {
+            reviewData.food = food;
+        }
+
+        const review = await Review.create(reviewData);
 
         if (food) {
             const reviews = await Review.find({ food });

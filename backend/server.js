@@ -1,15 +1,14 @@
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
+const Review = require('./models/Review');
 
 // Load environment variables
-dotenv.config();
-
-// Connect to MongoDB
-connectDB();
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 // Initialize Express
 const app = express();
@@ -95,9 +94,23 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Start server
-const PORT = process.env.PORT || 5001;
-server.listen(PORT, () => {
-    console.log(`🚀 The Hot Chick Server running on port ${PORT}`);
-    console.log(`🌐 http://localhost:${PORT}`);
-});
+const startServer = async () => {
+    try {
+        // Connect to MongoDB
+        await connectDB();
+
+        // Keep review indexes aligned with the schema so stale unique indexes do not block new reviews.
+        await Review.syncIndexes();
+
+        const PORT = process.env.PORT || 5001;
+        server.listen(PORT, () => {
+            console.log(`🚀 The Hot Chick Server running on port ${PORT}`);
+            console.log(`🌐 http://localhost:${PORT}`);
+        });
+    } catch (error) {
+        console.error(`Server startup failed: ${error.message}`);
+        process.exit(1);
+    }
+};
+
+startServer();

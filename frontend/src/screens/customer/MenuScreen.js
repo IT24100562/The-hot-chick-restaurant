@@ -31,6 +31,15 @@ export default function MenuScreen({ navigation, route }) {
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState('grid'); // grid or list
 
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation.navigate('Home');
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -228,7 +237,7 @@ export default function MenuScreen({ navigation, route }) {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={handleBack}>
           <MaterialIcons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
