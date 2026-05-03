@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, Alert, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,16 +13,19 @@ import api, { API_BASE_URL } from '../../api/axios';
 import colors from '../../styles/colors';
 import { DeliveryMap } from '../../components/DeliveryMap';
 import {
+
     allowAlphaSpace,
     allowNumeric,
     isCardName,
     isCardNumber,
     isCvv,
     isExpiryValid,
+
 } from '../../utils/validation';
 
 
 export default function CartScreen({ navigation }) {
+
     const { cartItems, updateQuantity, removeFromCart, clearCart, getTotal } = useCart();
     const { user } = useAuth();
     const tabBarHeight = useBottomTabBarHeight();
@@ -37,16 +41,19 @@ export default function CartScreen({ navigation }) {
     const [cardCvv, setCardCvv] = useState('');
     const [cardErrors, setCardErrors] = useState({});
     const [mapRegion, setMapRegion] = useState({
+        
         latitude: 6.9271,
         longitude: 79.8612,
         latitudeDelta: 0.02,
         longitudeDelta: 0.02,
+
     });
 
     const paymentOptions = [
         { key: 'cash', label: 'Cash on Delivery', icon: 'cash-outline', description: 'Pay after receiving your order' },
         { key: 'online', label: 'Online Transfer', icon: 'phone-portrait-outline', description: 'Transfer to our account' },
         { key: 'card', label: 'Card Payment', icon: 'card-outline', description: cardEnabled ? 'Secure card payment' : 'Currently unavailable' },
+
     ];
 
     useEffect(() => {
