@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl, Alert, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +7,7 @@ import api from '../../api/axios';
 import colors from '../../styles/colors';
 import { useAuth } from '../../context/AuthContext';
 
+
 const statusConfig = {
     pending: { icon: 'time', color: colors.pending, label: 'Pending' },
     preparing: { icon: 'restaurant', color: colors.preparing, label: 'Preparing' },
@@ -13,11 +15,13 @@ const statusConfig = {
     cancelled: { icon: 'close-circle', color: colors.cancelled, label: 'Cancelled' },
 };
 
+
 const paymentConfig = {
     cash: { label: 'Cash on Delivery', color: colors.success, icon: 'cash-outline' },
     online: { label: 'Online Transfer', color: colors.info, icon: 'phone-portrait-outline' },
     card: { label: 'Card Payment', color: colors.primary, icon: 'card-outline' },
 };
+
 
 const ORDER_EDIT_WINDOW_MS = 5 * 60 * 1000;
 
