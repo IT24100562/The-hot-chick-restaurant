@@ -1,6 +1,7 @@
 
 const mongoose = require('mongoose');
 
+
 const orderSchema = new mongoose.Schema(
     {
         userId: {
@@ -33,6 +34,7 @@ const orderSchema = new mongoose.Schema(
                 },
             },
         ],
+
         totalAmount: {
             type: Number,
             required: true,
