@@ -1,5 +1,6 @@
 
 const Order = require('../models/Order');
+const Payment = require('../models/Payment');
 const { isDecimal, isNumeric } = require('../utils/validation');
 
 const ORDER_UPDATE_WINDOW_MS = 5 * 60 * 1000;
@@ -68,6 +69,23 @@ const validateOrderUpdateAccess = (order, userId) => {
     return { allowed: true, statusCode: 200, remainingSeconds };
 };
 
+const syncOrderPaymentRecord = async (order) => {
+    if (!order) return null;
+
+    return Payment.findOneAndUpdate(
+        { order: order._id },
+        {
+            user: order.userId,
+            order: order._id,
+            amount: order.totalAmount,
+            method: order.paymentMethod,
+            status: order.paymentStatus,
+            reference: order.paymentReference || '',
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true }
+    );
+};
+
 // @desc    Create an order
 // @route   POST /api/orders
 // @access  Private
@@ -127,6 +145,8 @@ const createOrder = async (req, res) => {
             specialInstructions: specialInstructions || '',
         });
 
+        const payment = await syncOrderPaymentRecord(order);
+
         const populatedOrder = await order.populate('userId', 'name email phone');
 
         // Emit real-time event to admin
@@ -134,6 +154,11 @@ const createOrder = async (req, res) => {
         io.to('admin').emit('newOrder', {
             message: `New order from ${req.user.name}`,
             order: populatedOrder,
+        });
+
+        io.to('admin').emit('newPayment', {
+            message: `New payment from ${req.user.name}`,
+            payment,
         });
 
         res.status(201).json({
@@ -319,6 +344,7 @@ const updateMyOrder = async (req, res) => {
         }
 
         await order.save();
+        await syncOrderPaymentRecord(order);
 
         const populatedOrder = await order.populate('items.food', 'name image price');
 
@@ -352,6 +378,7 @@ const deleteMyOrder = async (req, res) => {
             });
         }
 
+        await Payment.deleteMany({ order: order._id });
         await order.deleteOne();
 
         res.json({
